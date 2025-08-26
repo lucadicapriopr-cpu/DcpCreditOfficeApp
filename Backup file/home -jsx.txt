@@ -1,0 +1,51 @@
+import { Link } from "react-router-dom";
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#121212] via-[#1a1625] to-[#0d0d0d] flex flex-col justify-between text-[#E0E0E0]">
+      {/* Header */}
+      <header className="bg-[#1E1E1E]/80 backdrop-blur-md shadow-lg border-b border-[#2C2C2C]">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-extrabold text-[#FFCA28] tracking-wide">
+            DCP Credit Office
+          </h1>
+          <nav className="space-x-6 text-[#E0E0E0] font-medium">
+            <Link to="/dashboard" className="hover:text-[#7E57C2] transition">Dashboard</Link>
+            <Link to="/clienti" className="hover:text-[#7E57C2] transition">Clienti</Link>
+            <Link to="/insoluti" className="hover:text-[#7E57C2] transition">Insoluti</Link>
+            <Link to="/pratiche-legali" className="hover:text-[#7E57C2] transition">Pratiche Legali</Link>
+            <Link to="/report" className="hover:text-[#7E57C2] transition">Report</Link>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-6">
+        <h2 className="text-5xl font-extrabold mb-6">
+          Gestisci i tuoi crediti con{" "}
+          <span className="text-[#FFCA28]">precisione</span>
+          <br />
+          <span className="bg-gradient-to-r from-[#7E57C2] to-[#039BE5] bg-clip-text text-transparent">
+            e sicurezza
+          </span>
+        </h2>
+        <p className="text-lg text-[#9E9E9E] max-w-2xl mb-10">
+          Una piattaforma di nuova generazione per la gestione clienti,
+          insoluti e pratiche legali.  
+          
+        </p>
+        <Link
+          to="/dashboard"
+          className="bg-gradient-to-r from-[#FFCA28] to-[#FFD54F] text-[#121212] font-semibold px-8 py-4 rounded-xl shadow-lg hover:from-[#7E57C2] hover:to-[#039BE5] hover:text-white transition-all duration-300"
+        >
+          Vai alla Dashboard
+        </Link>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-[#1E1E1E]/90 border-t border-[#2C2C2C] py-4 text-center text-[#9E9E9E] text-sm">
+        © {new Date().getFullYear()} Luca Di Caprio · <span className="text-[#7E57C2]">Debora Pia Di Cerbo</span>
+      </footer>
+    </div>
+  );
+}

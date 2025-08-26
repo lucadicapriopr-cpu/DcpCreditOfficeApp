@@ -1,0 +1,8 @@
+﻿node_modules/
+dist/
+backups/
+*.log
+prisma/dev.db
+.env
+frontend/.env
+frontend/.env.*
