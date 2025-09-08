@@ -1,24 +1,71 @@
+// backend/prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model Cliente {
-  id        Int       @id @default(autoincrement())
-  nome      String
-  cognome   String
-  email     String    @unique
-  pratiche  Pratica[]
+  id                     Int        @id @default(autoincrement())
+  nome                   String
+  cfPiva                 String     @unique
+  telefono               String?
+  email                  String?
+  indirizzoFatturazione  String?
+
+  utenze                 Utenza[]
+  fatture                Fattura[]
+
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
 }
 
-model Pratica {
-  id          Int      @id @default(autoincrement())
-  titolo      String
-  descrizione String?
+model Utenza {
+  id          Int       @id @default(autoincrement())
   clienteId   Int
-  cliente     Cliente  @relation(fields: [clienteId], references: [id])
+  tipo        String    // "gas" | "power"
+  codice      String    @unique   // PDR o POD (univoco a livello nazionale)
+  indirizzo   String?
+  comune      String?
+  provincia   String?
+  cap         String?
+  statoUtenza String?   // "ATTIVA" | "CESSATA" | ...
+
+  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  fatture     Fattura[]
+
+  @@index([clienteId])
+  @@index([codice])
 }
+
+model Fattura {
+  id                Int       @id @default(autoincrement())
+  clienteId         Int
+  utenzaId          Int?
+  numero            String
+  importoFattura    Int       // centesimi
+  incassato         Int       @default(0) // centesimi
+  residuo           Int       @default(0) // centesimi
+  dtEmissione       DateTime?
+  dtScadenza        DateTime?
+  stato             String?   // "NON_PAGATA" | "PARZIALMENTE_PAGATA" | "PAGATA"
+  praticaLegaleId   String?   // semplice riferimento testuale/esterno
+
+  cliente           Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  utenza            Utenza?   @relation(fields: [utenzaId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Opzione A: univocità per cliente + numero
+  @@unique([clienteId, numero], name: "cliente_numero_unique")
+
+  @@index([clienteId])
+  @@index([utenzaId])
+  @@index([numero])
+}
+

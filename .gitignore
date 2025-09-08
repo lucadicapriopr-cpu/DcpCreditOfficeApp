@@ -1,8 +1,7 @@
 ﻿node_modules/
 dist/
-backups/
-*.log
-prisma/dev.db
+build/
 .env
-frontend/.env
-frontend/.env.*
+*.log
+*.sql
+.DS_Store
