@@ -11,6 +11,11 @@ const prisma = new PrismaClient();
 const upload = multer({ dest: "uploads/" });
 
 const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`API on :${PORT}`));
+
+const cors = require('cors');
+app.use(cors({ origin: '*' })); // in produzione meglio limitare al dominio Vercel
+
 
 app.use(cors());
 app.use(express.json());
