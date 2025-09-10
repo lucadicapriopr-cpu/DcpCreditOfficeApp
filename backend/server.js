@@ -13,7 +13,6 @@ const upload = multer({ dest: "uploads/" });
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API on :${PORT}`));
 
-
 app.use(cors());
 app.use(express.json());
 
@@ -187,10 +186,4 @@ app.post("/api/sync-import", upload.single("file"), async (req, res) => {
     console.error("Errore /api/sync-import:", e);
     res.status(500).json({ error: "Import error" });
   }
-});
-
-// TODO: altri endpoint (fatture, pratiche legali, dettagli cliente, ecc.)
-
-app.listen(PORT, () => {
-  console.log(`Backend on http://localhost:${PORT}`);
 });
