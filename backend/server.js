@@ -13,6 +13,24 @@ const upload = multer({ dest: "uploads/" });
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API on :${PORT}`));
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://<TUO-DOMINIO-VERCEL>.vercel.app' // quando pubblicherai il frontend
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);             // permette tool tipo curl/Postman
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('CORS blocked: ' + origin));
+  },
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: false
+}));
+
+app.options('*', cors());
+
 app.use(cors());
 app.use(express.json());
 
