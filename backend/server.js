@@ -15,7 +15,7 @@ app.listen(PORT, () => console.log(`API on :${PORT}`));
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://<TUO-DOMINIO-VERCEL>.vercel.app' // quando pubblicherai il frontend
+  'https://dcp-credit-office-app.vercel.app' // quando pubblicherai il frontend
 ];
 
 app.use(cors({
