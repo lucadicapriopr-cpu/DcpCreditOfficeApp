@@ -1,71 +1,104 @@
 // backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db" // ok così come lo usi ora
+}
+
+enum TipoUtenza {
+  GAS
+  POWER
 }
 
 model Cliente {
-  id                     Int        @id @default(autoincrement())
-  nome                   String
-  cfPiva                 String     @unique
-  telefono               String?
-  email                  String?
-  indirizzoFatturazione  String?
+  id        Int       @id @default(autoincrement())
 
-  utenze                 Utenza[]
-  fatture                Fattura[]
+  // campi esistenti
+  nome      String
+  cognome   String
 
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  // reso opzionale per compatibilità import (spesso manca)
+  email     String?   @unique
+
+  // nuovi campi utili all’import insoluti (niente @db.VarChar)
+  codiceFiscale         String?
+  partitaIva            String?
+  telefono              String?
+  indirizzoFatturazione String?
+  comune                String?
+
+  utenze    Utenza[]
+  fatture   Fattura[]
+  pratiche  Pratica[]   // relazione già esistente
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([codiceFiscale])
+  @@index([partitaIva])
 }
 
 model Utenza {
-  id          Int       @id @default(autoincrement())
-  clienteId   Int
-  tipo        String    // "gas" | "power"
-  codice      String    @unique   // PDR o POD (univoco a livello nazionale)
-  indirizzo   String?
-  comune      String?
-  provincia   String?
-  cap         String?
-  statoUtenza String?   // "ATTIVA" | "CESSATA" | ...
+  id               Int       @id @default(autoincrement())
+  clienteId        Int
+  cliente          Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
-  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  fatture     Fattura[]
+  tipo             TipoUtenza
+  codice           String    @unique          // PDR/POD/IdUtenza normalizzato
+  stato            String?                    // Stato_Utenza
+  descrizioneStato String?                    // DesStato_Utenza
+  dataCessazione   DateTime?                  // Data_Cessazione
+  comune           String?
+  recapitoTelefono String?                    // RecapitoTelefonico
+  agente           String?                    // Agente
 
-  @@index([clienteId])
-  @@index([codice])
+  fatture          Fattura[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Fattura {
-  id                Int       @id @default(autoincrement())
-  clienteId         Int
-  utenzaId          Int?
-  numero            String
-  importoFattura    Int       // centesimi
-  incassato         Int       @default(0) // centesimi
-  residuo           Int       @default(0) // centesimi
-  dtEmissione       DateTime?
-  dtScadenza        DateTime?
-  stato             String?   // "NON_PAGATA" | "PARZIALMENTE_PAGATA" | "PAGATA"
-  praticaLegaleId   String?   // semplice riferimento testuale/esterno
+  id               Int       @id @default(autoincrement())
+  clienteId        Int
+  cliente          Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
-  cliente           Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  utenza            Utenza?   @relation(fields: [utenzaId], references: [id], onDelete: SetNull)
+  utenzaId         Int?
+  utenza           Utenza?   @relation(fields: [utenzaId], references: [id])
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  numero           String
+  dataFattura      DateTime?                 // DataFattura
+  periodo          String?                   // Periodo Fatturazione
 
-  // Opzione A: univocità per cliente + numero
-  @@unique([clienteId, numero], name: "cliente_numero_unique")
+  // Importi come Decimal (senza @db.Decimal)
+  importo          Decimal
+  incassato        Decimal?
 
-  @@index([clienteId])
-  @@index([utenzaId])
+  scadenza         DateTime?                 // scadenza
+  stato            String?                   // stato
+
+  esclusaElab      Boolean    @default(false)    // EsclusioneContrattoDaElab.
+  sollecitoData    DateTime?                 // Data primo sollecito ancora aperto
+  sollecitoImporto Decimal?                  // Importo data primo sollecito
+  pianoRientro     String?                   // Piano di rientro o rateizzazione
+  praticaRef       String?                   // Pratica PDR/POD
+  praticaData      DateTime?                 // Data pratica PDR/POD
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([clienteId, numero]) // decisione tecnica già presa
   @@index([numero])
+  @@index([scadenza])
 }
 
+model Pratica {
+  id          Int      @id @default(autoincrement())
+  titolo      String
+  descrizione String?
+  clienteId   Int
+  cliente     Cliente  @relation(fields: [clienteId], references: [id])
+}
