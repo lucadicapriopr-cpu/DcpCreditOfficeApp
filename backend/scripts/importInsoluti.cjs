@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Prisma } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
@@ -20,8 +20,20 @@ const HEADER_ALIASES = {
   stato: ["stato", "stato fattura"],
   dtEmissione: ["datafattura", "data fattura", "dtemissione", "data_emissione"],
   dtScadenza: ["scadenza", "dtscadenza", "data scadenza"],
+  periodo: ["periodo fatturazione", "periodo", "periodo_fatturazione"],
   indirizzo: ["fa_indir", "indirizzo fatturazione", "indirizzo_fatturazione"],
   telefono: ["recapitotelefonico", "telefono", "cellulare"],
+  comune: ["comune"],
+  esclusione: ["esclusionecontrattodaelab.", "esclusione contratto da elab.", "esclusione"],
+  sollecitoData: ["data primo sollecito ancora aperto", "data primo sollecito"],
+  sollecitoImporto: ["importo data primo sollecito ancora", "importo sollecito"],
+  pianoRientro: ["piano di rientro o rateizzazione", "piano di rientro", "rateizzazione"],
+  praticaRef: ["pratica pod", "pratica pdr", "pratica"],
+  praticaData: ["data pratica pod", "data pratica pdr", "data pratica"],
+  statoUtenza: ["stato_utenza"],
+  desStatoUtenza: ["desstato_utenza"],
+  dataCessazione: ["data_cessazione", "data cessazione"],
+  agente: ["agente"],
 };
 
 // ---------- Helpers header ----------
@@ -81,7 +93,7 @@ function autoFindHeader(lines, maxScan = 10) {
     for (const d of candidateDelimiters()) {
       const cells = splitWithDelim(lines[i], d);
       const map = mapHeaderIndices(cells);
-      // scoring: richiede prioritariamente numero_fattura + nominativo + (cf|piva)
+      // scoring: prioritizza numero_fattura + nominativo + (cf|piva)
       const score =
         (map.numero_fattura >= 0 ? 100 : 0) +
         (map.nominativo >= 0 ? 50 : 0) +
@@ -94,19 +106,11 @@ function autoFindHeader(lines, maxScan = 10) {
         best = { index: i, delimiter: d, headerCells: cells, headerMap: map, score };
       }
       if (score >= 150 && (map.cf >= 0 || map.piva >= 0)) {
-        // già eccellente → stop early
-        return best;
+        return best; // ottimo → stop early
       }
     }
   }
   return best;
-}
-
-function detectDelimiterSimple(line) {
-  const sc = (line.match(/;/g) || []).length;
-  const cc = (line.match(/,/g) || []).length;
-  if (sc > 0 && sc >= cc) return ";";
-  return ",";
 }
 
 const firstNonEmpty = (...vals) => vals.find((v) => String(v || "").trim() !== "") || "";
@@ -122,7 +126,10 @@ function parseMoneyIT(raw) {
   else if (s.includes(",")) s = s.replace(",", ".");
   const v = Number.parseFloat(s);
   if (Number.isNaN(v)) return 0;
-  return Math.round(v * 100);
+  return Math.round(v * 100); // cents
+}
+function toDecimalFromCents(cents) {
+  return new Prisma.Decimal((Number(cents) / 100).toFixed(2));
 }
 function parseDateSmart(raw) {
   const s = String(raw || "").trim();
@@ -137,12 +144,12 @@ function parseDateSmart(raw) {
 }
 function normalizeTipo(tipoRaw, codiceCont) {
   const t = String(tipoRaw || "").toLowerCase();
-  if (t.includes("gas") || (codiceCont || "").toUpperCase().startsWith("ITG")) return "gas";
-  if (t.includes("pow") || t.includes("ene") || t.includes("ele") || t.includes("luce")) return "power";
+  if (t.includes("gas") || (codiceCont || "").toUpperCase().startsWith("ITG")) return "GAS";
+  if (t.includes("pow") || t.includes("ene") || t.includes("ele") || t.includes("luce")) return "POWER";
   const code = String(codiceCont || "").toUpperCase();
-  if (code.startsWith("IT00") || code.startsWith("IT001E") || code.startsWith("POD")) return "power";
-  if (code.startsWith("PDR") || code.length === 14) return "gas";
-  return "power";
+  if (code.startsWith("IT00") || code.startsWith("IT001E") || code.startsWith("POD")) return "POWER";
+  if (code.startsWith("PDR") || code.length === 14) return "GAS";
+  return "POWER";
 }
 
 // ---------- Lettura file CSV o XLSX ----------
@@ -157,24 +164,68 @@ function readTextFromFile(filePath) {
     const csv = XLSX.utils.sheet_to_csv(sheet, { FS: ";", RS: "\n" });
     return csv;
   }
-  // CSV normale
-  return fs.readFileSync(filePath, "utf-8");
+  return fs.readFileSync(filePath, "utf-8"); // CSV normale
 }
 
-/** Import principale */
+// ---------- Cliente helpers ----------
+async function findOrCreateCliente({ nominativo, cf, piva, indirizzoFatturazione, telefono, comune }) {
+  const cfNorm = (cf || "").replace(/\s+/g, "").toUpperCase();
+  const pivaNorm = (piva || "").replace(/\s+/g, "").toUpperCase();
+
+  let cliente = null;
+
+  if (cfNorm || pivaNorm) {
+    cliente = await prisma.cliente.findFirst({
+      where: {
+        OR: [
+          cfNorm ? { codiceFiscale: cfNorm } : undefined,
+          pivaNorm ? { partitaIva: pivaNorm } : undefined,
+        ].filter(Boolean),
+      },
+    });
+  }
+
+  if (cliente) {
+    // aggiorna solo se arrivano valori non vuoti
+    cliente = await prisma.cliente.update({
+      where: { id: cliente.id },
+      data: {
+        nome: nominativo || cliente.nome,
+        codiceFiscale: cfNorm || cliente.codiceFiscale,
+        partitaIva: pivaNorm || cliente.partitaIva,
+        indirizzoFatturazione: indirizzoFatturazione || cliente.indirizzoFatturazione,
+        telefono: telefono || cliente.telefono,
+        comune: comune || cliente.comune,
+      },
+    });
+  } else {
+    cliente = await prisma.cliente.create({
+      data: {
+        nome: nominativo || "Senza Nome",
+        codiceFiscale: cfNorm || null,
+        partitaIva: pivaNorm || null,
+        indirizzoFatturazione: indirizzoFatturazione || null,
+        telefono: telefono || null,
+        comune: comune || null,
+      },
+    });
+  }
+
+  return cliente;
+}
+
+// ---------- Import principale ----------
 async function importCSV(filePath) {
   if (!fs.existsSync(filePath)) throw new Error(`File non trovato: ${filePath}`);
 
   const content = readTextFromFile(filePath);
-  // Non filtrare subito: l’autoheader deve “vedere” anche righe vuote/descrittive
   const rawLines = content.split(/\r?\n/);
-
   if (rawLines.length === 0) throw new Error("File vuoto");
 
-  // Salta eventuale riga "sep=;" (tipica dei CSV di Excel)
+  // Salta eventuale riga "sep=;"
   const lines = rawLines.filter((l, idx) => !(idx === 0 && /^sep\s*=\s*./i.test(l.trim())));
 
-  // Trova automaticamente la riga di header migliore
+  // Individua automaticamente la riga di header
   const best = autoFindHeader(lines, 10);
   if (!best) throw new Error("Impossibile individuare l'intestazione del file");
   const { index: headerIndex, delimiter, headerCells, headerMap } = best;
@@ -189,72 +240,66 @@ async function importCSV(filePath) {
   let imported = 0;
   let skipped = 0;
 
-  // Dal primo record utile dopo l’header
   for (let lineNo = headerIndex + 1; lineNo < lines.length; lineNo++) {
     const line = lines[lineNo];
     if (!line || !String(line).trim()) continue;
     const cells = splitWithDelim(line, delimiter);
 
     try {
-      // --- Estrazione campi ---
       const getByIdx = (idx) => (idx >= 0 ? clean(cells[idx]) : "");
 
+      // --- Estrazione campi ---
       const numero_fattura = getByIdx(headerMap.numero_fattura);
       const nominativo = firstNonEmpty(getByIdx(headerMap.nominativo));
       const cf = getByIdx(headerMap.cf);
       const piva = getByIdx(headerMap.piva);
-      const cfpiRaw = firstNonEmpty(cf, piva);
-
       const codice_contatore = firstNonEmpty(getByIdx(headerMap.codiceCont));
-
       const tipoContrRaw = getByIdx(headerMap.tipo);
-      const TipologiaContrattuale = normalizeTipo(tipoContrRaw, codice_contatore);
+      const tipoUtenza = normalizeTipo(tipoContrRaw, codice_contatore); // "GAS" | "POWER"
 
-      const importo_fattura = getByIdx(headerMap.importo);
+      const importo_raw = getByIdx(headerMap.importo);
       const incassato_raw = getByIdx(headerMap.incassato);
       const stato = getByIdx(headerMap.stato);
       const dtEmRaw = getByIdx(headerMap.dtEmissione);
       const dtScadRaw = getByIdx(headerMap.dtScadenza);
+      const periodo = getByIdx(headerMap.periodo);
 
       const indirizzoFatt = getByIdx(headerMap.indirizzo);
       const telefono = getByIdx(headerMap.telefono);
+      const comune = getByIdx(headerMap.comune);
+
+      const esclusione = getByIdx(headerMap.esclusione);
+      if (esclusione && ["si", "sì", "1", "y", "true"].includes(esclusione.toLowerCase())) {
+        skipped++;
+        continue; // scarta righe escluse dall’elaborazione
+      }
 
       // Validazione minima
-      if (!numero_fattura || !nominativo || !cfpiRaw) {
+      if (!numero_fattura || !nominativo || (!cf && !piva)) {
         skipped++;
         continue;
       }
 
       // Parse valori
-      const importoCents = parseMoneyIT(importo_fattura);
+      const importoCents = parseMoneyIT(importo_raw);
       const incassatoCents = parseMoneyIT(incassato_raw);
-      const residuoCents = Math.max(importoCents - incassatoCents, 0);
-      const dtEmissione = parseDateSmart(dtEmRaw);
-      const dtScadenza = parseDateSmart(dtScadRaw);
+      const dataFattura = parseDateSmart(dtEmRaw);
+      const scadenza = parseDateSmart(dtScadRaw);
 
-      // Normalizza CF/PIVA
-      const cfpi = String(cfpiRaw).replace(/\s+/g, "").toUpperCase();
-
-      // === Upsert Cliente (unique su cfPiva) ===
-      const cliente = await prisma.cliente.upsert({
-        where: { cfPiva: cfpi },
-        update: {
-          nome: nominativo,
-          indirizzoFatturazione: indirizzoFatt || undefined,
-          telefono: telefono || undefined,
-        },
-        create: {
-          cfPiva: cfpi,
-          nome: nominativo,
-          indirizzoFatturazione: indirizzoFatt || undefined,
-          telefono: telefono || undefined,
-        },
+      // === Cliente ===
+      const cliente = await findOrCreateCliente({
+        nominativo,
+        cf,
+        piva,
+        indirizzoFatturazione: indirizzoFatt,
+        telefono,
+        comune,
       });
 
-      // === Upsert Utenza (facoltativa, unique su codice) ===
+      // === Utenza (facoltativa) ===
       let utenza = null;
       if (codice_contatore) {
-        const tipo = TipologiaContrattuale;
+        const tipo = tipoUtenza; // "GAS" | "POWER" (enum)
         utenza = await prisma.utenza.upsert({
           where: { codice: codice_contatore },
           update: { clienteId: cliente.id, tipo },
@@ -262,28 +307,25 @@ async function importCSV(filePath) {
         });
       }
 
-      // === Fattura: unica per (clienteId, numero) ===
-      const existing = await prisma.fattura.findFirst({
-        where: { numero: numero_fattura, clienteId: cliente.id },
-      });
-
-      const dataFattura = {
+      // === Fattura: upsert su chiave composta (clienteId, numero) ===
+      const whereUnique = { clienteId_numero: { clienteId: cliente.id, numero: numero_fattura } };
+      const dataFatt = {
         clienteId: cliente.id,
         utenzaId: utenza?.id ?? null,
         numero: numero_fattura,
-        importoFattura: importoCents,
-        incassato: incassatoCents,
-        residuo: residuoCents,
-        dtEmissione: dtEmissione,
-        dtScadenza: dtScadenza,
+        dataFattura: dataFattura,
+        scadenza: scadenza,
+        periodo: periodo || null,
+        importo: toDecimalFromCents(importoCents),
+        incassato: incassatoCents ? toDecimalFromCents(incassatoCents) : null,
         stato: stato || null,
       };
 
-      if (existing) {
-        await prisma.fattura.update({ where: { id: existing.id }, data: dataFattura });
-      } else {
-        await prisma.fattura.create({ data: dataFattura });
-      }
+      await prisma.fattura.upsert({
+        where: whereUnique,
+        update: dataFatt,
+        create: dataFatt,
+      });
 
       imported++;
     } catch (err) {
