@@ -5,7 +5,7 @@ import Clienti from "./pages/Clienti";
 import Insoluti from "./pages/Insoluti";
 import PraticheLegali from "./pages/PraticheLegali";
 import Report from "./pages/Report";
-import CalendarTest from "./pages/CalendarTest"; // ✅ Import per il test
+import CalendarTest from "./pages/CalendarTest";
 import Login from "./pages/Login";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -31,6 +31,7 @@ function ProtectedRoute({ children }) {
     }
 
     init();
+
     return () => {
       mounted = false;
     };
@@ -56,22 +57,17 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
 
-          {/* Home */}
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/Home" element={<Navigate to="/" replace />} />
           <Route path="/auth/callback" element={<Navigate to="/" replace />} />
 
-          {/* Altre pagine */}
           <Route path="/clienti" element={<ProtectedRoute><Clienti /></ProtectedRoute>} />
           <Route path="/insoluti" element={<ProtectedRoute><Insoluti /></ProtectedRoute>} />
           <Route path="/pratiche-legali" element={<ProtectedRoute><PraticheLegali /></ProtectedRoute>} />
           <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
-
-          {/* Test Calendario */}
           <Route path="/calendar-test" element={<ProtectedRoute><CalendarTest /></ProtectedRoute>} />
 
-          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
