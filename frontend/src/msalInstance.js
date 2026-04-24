@@ -1,5 +1,9 @@
 // src/msalInstance.js
-import { PublicClientApplication, EventType, InteractionRequiredAuthError } from "@azure/msal-browser";
+import {
+  PublicClientApplication,
+  EventType,
+  InteractionRequiredAuthError,
+} from "@azure/msal-browser";
 
 function envFirst(...keys) {
   for (const k of keys) {
@@ -9,12 +13,13 @@ function envFirst(...keys) {
   return "";
 }
 
-// Compatibilità: supporta sia VITE_AZURE_AD_* che VITE_MSAL_*.
 const clientId = envFirst("VITE_AZURE_AD_CLIENT_ID", "VITE_MSAL_CLIENT_ID");
 const tenantId = envFirst("VITE_AZURE_AD_TENANT_ID", "VITE_MSAL_TENANT_ID");
+
 const redirectUri =
   envFirst("VITE_AZURE_AD_REDIRECT_URI", "VITE_MSAL_REDIRECT_URI") ||
   window.location.origin;
+
 const postLogoutRedirectUri =
   envFirst("VITE_AZURE_AD_POST_LOGOUT_REDIRECT_URI", "VITE_MSAL_POST_LOGOUT_REDIRECT_URI") ||
   window.location.origin;
@@ -55,7 +60,14 @@ export const loginRequest = {
 
 export const msalInstance = new PublicClientApplication(msalConfig);
 
+let msalInitialized = false;
+
 export async function ensureMsalInitialized() {
+  if (!msalInitialized) {
+    await msalInstance.initialize();
+    msalInitialized = true;
+  }
+
   await msalInstance.handleRedirectPromise().catch((e) => {
     console.warn("[MSAL] handleRedirectPromise error:", e);
   });
@@ -63,18 +75,22 @@ export async function ensureMsalInitialized() {
   let account = msalInstance.getActiveAccount();
 
   if (!account) {
-    const all = msalInstance.getAllAccounts();
-    if (all.length > 0) {
-      msalInstance.setActiveAccount(all[0]);
-      account = all[0];
+    const allAccounts = msalInstance.getAllAccounts();
+
+    if (allAccounts.length > 0) {
+      account = allAccounts[0];
+      msalInstance.setActiveAccount(account);
     }
   }
 
   if (!account) {
     try {
       const sso = await msalInstance.ssoSilent(loginRequest);
-      msalInstance.setActiveAccount(sso.account);
-      account = sso.account;
+
+      if (sso?.account) {
+        account = sso.account;
+        msalInstance.setActiveAccount(account);
+      }
     } catch (e) {
       if (!(e instanceof InteractionRequiredAuthError)) {
         console.warn("[MSAL] ssoSilent non disponibile:", e);
