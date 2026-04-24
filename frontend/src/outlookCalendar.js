@@ -1,6 +1,5 @@
 // src/outlookCalendar.js
-import { msalInstance } from "./msalInstance";
-import { loginRequest } from "./authConfig";
+import { msalInstance, loginRequest } from "./msalInstance";
 
 const GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0/me/events";
 

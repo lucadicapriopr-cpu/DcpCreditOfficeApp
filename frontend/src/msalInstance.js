@@ -1,13 +1,33 @@
 // src/msalInstance.js
 import { PublicClientApplication, EventType, InteractionRequiredAuthError } from "@azure/msal-browser";
 
-// Usa variabili Vite (imposta nel tuo .env.local)
+function envFirst(...keys) {
+  for (const k of keys) {
+    const v = import.meta.env[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+// Compatibilità: supporta sia VITE_AZURE_AD_* che VITE_MSAL_*.
+const clientId = envFirst("VITE_AZURE_AD_CLIENT_ID", "VITE_MSAL_CLIENT_ID");
+const tenantId = envFirst("VITE_AZURE_AD_TENANT_ID", "VITE_MSAL_TENANT_ID") || "common";
+const redirectUri = envFirst("VITE_AZURE_AD_REDIRECT_URI", "VITE_MSAL_REDIRECT_URI") || window.location.origin;
+const postLogoutRedirectUri =
+  envFirst("VITE_AZURE_AD_POST_LOGOUT_REDIRECT_URI", "VITE_MSAL_POST_LOGOUT_REDIRECT_URI") || window.location.origin;
+
+if (!clientId) {
+  console.warn(
+    "[MSAL] Missing client id. Set VITE_AZURE_AD_CLIENT_ID (or VITE_MSAL_CLIENT_ID) in your frontend env file."
+  );
+}
+
 const msalConfig = {
   auth: {
-    clientId: import.meta.env.VITE_AZURE_AD_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_AD_TENANT_ID}`,
-    redirectUri: import.meta.env.VITE_AZURE_AD_REDIRECT_URI || window.location.origin,
-    postLogoutRedirectUri: import.meta.env.VITE_AZURE_AD_POST_LOGOUT_REDIRECT_URI || window.location.origin,
+    clientId,
+    authority: `https://login.microsoftonline.com/${tenantId}`,
+    redirectUri,
+    postLogoutRedirectUri,
   },
   cache: {
     cacheLocation: "localStorage",
@@ -17,10 +37,7 @@ const msalConfig = {
 
 export const loginRequest = {
   scopes: [
-    "openid",
-    "profile",
-    "email",
-    "offline_access",
+    "User.Read",
     "Calendars.ReadWrite", // per Outlook
   ],
 };

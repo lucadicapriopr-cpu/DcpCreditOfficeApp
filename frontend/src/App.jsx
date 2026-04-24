@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Clienti from "./pages/Clienti";
+import Insoluti from "./pages/Insoluti";
 import PraticheLegali from "./pages/PraticheLegali";
+import Report from "./pages/Report";
 import CalendarTest from "./pages/CalendarTest"; // ✅ Import per il test
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -21,7 +23,9 @@ function App() {
 
           {/* Altre pagine */}
           <Route path="/clienti" element={<Clienti />} />
+          <Route path="/insoluti" element={<Insoluti />} />
           <Route path="/pratiche-legali" element={<PraticheLegali />} />
+          <Route path="/report" element={<Report />} />
 
           {/* Test Calendario */}
           <Route path="/calendar-test" element={<CalendarTest />} />
