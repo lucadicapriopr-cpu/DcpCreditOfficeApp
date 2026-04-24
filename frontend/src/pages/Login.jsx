@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginRequest, msalInstance } from "../msalInstance";
 
@@ -14,22 +14,30 @@ export default function Login() {
 
   const hasActiveAccount = useMemo(() => Boolean(account), [account]);
 
+  useEffect(() => {
+    const active = resolveAccount();
+    if (active) {
+      msalInstance.setActiveAccount(active);
+      setAccount(active);
+    }
+  }, []);
+
+  const goHome = (active) => {
+    if (!active) return;
+    msalInstance.setActiveAccount(active);
+    setAccount(active);
+    navigate("/", { replace: true });
+  };
+
   const handleLogin = async () => {
     setLoading(true);
     setError("");
 
     try {
       const resp = await msalInstance.loginPopup(loginRequest);
+      const nextAccount = resp?.account ?? resolveAccount();
 
-      if (resp?.account) {
-        msalInstance.setActiveAccount(resp.account);
-      }
-
-      const nextAccount = msalInstance.getActiveAccount() ?? msalInstance.getAllAccounts()[0] ?? null;
-      if (nextAccount && !msalInstance.getActiveAccount()) {
-        msalInstance.setActiveAccount(nextAccount);
-      }
-      setAccount(nextAccount);
+      goHome(nextAccount);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore durante il login");
     } finally {
@@ -38,15 +46,7 @@ export default function Login() {
   };
 
   const enterApp = () => {
-    const current = msalInstance.getActiveAccount() ?? msalInstance.getAllAccounts()[0] ?? null;
-    if (current && !msalInstance.getActiveAccount()) {
-      msalInstance.setActiveAccount(current);
-      setAccount(current);
-    }
-
-    if (current) {
-      navigate("/");
-    }
+    goHome(resolveAccount());
   };
 
   return (
@@ -76,9 +76,7 @@ export default function Login() {
           <p className="text-sm text-slate-300">Connesso come: {account.username}</p>
         )}
 
-        {error && (
-          <p className="text-sm text-rose-300">{error}</p>
-        )}
+        {error && <p className="text-sm text-rose-300">{error}</p>}
       </div>
     </div>
   );
