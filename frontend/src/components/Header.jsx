@@ -32,7 +32,7 @@ function Header() {
         </h1>
 
         <nav className="space-x-6 text-[#E0E0E0] font-medium flex items-center">
-          <Link to="/dashboard" className="hover:text-[#7E57C2] transition">
+          <Link to="/" className="hover:text-[#7E57C2] transition">
             Dashboard
           </Link>
           <Link to="/clienti" className="hover:text-[#7E57C2] transition">

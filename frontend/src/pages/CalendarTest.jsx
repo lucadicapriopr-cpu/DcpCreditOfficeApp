@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useMsal } from "@azure/msal-react";
+import { loginRequest } from "../msalInstance";
 
 const CalendarTest = () => {
   const { instance, accounts } = useMsal();
@@ -8,7 +9,7 @@ const CalendarTest = () => {
   const login = async () => {
     try {
       await instance.loginPopup({
-        scopes: ["User.Read", "Calendars.ReadWrite"],
+        scopes: loginRequest.scopes,
       });
     } catch (err) {
       console.error("Login error:", err);
@@ -26,14 +27,14 @@ const CalendarTest = () => {
     try {
       // Prova a prendere il token in silent
       tokenResponse = await instance.acquireTokenSilent({
-        scopes: ["User.Read", "Calendars.ReadWrite"],
+        scopes: loginRequest.scopes,
         account: accounts[0],
       });
     } catch (silentError) {
       console.log("Silent token failed, fallback to popup", silentError);
       try {
         tokenResponse = await instance.acquireTokenPopup({
-          scopes: ["User.Read", "Calendars.ReadWrite"],
+          scopes: loginRequest.scopes,
         });
       } catch (popupError) {
         console.error("Popup token failed", popupError);

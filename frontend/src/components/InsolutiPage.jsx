@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
@@ -7,12 +7,12 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 const InsolutiPage = () => {
   const [anno, setAnno] = useState(2025);
   const [trimestre, setTrimestre] = useState(1);
-  const [fatturato, setFatturato] = useState(1000);
-  const [insoluto, setInsoluto] = useState(200);
-  const [fatture, setFatture] = useState([
+  const fatturato = 1000;
+  const insoluto = 200;
+  const fatture = [
     { numero: '202540001234', importo: 100, cliente: 'Mario Rossi' },
     { numero: '202540001235', importo: 200, cliente: 'Vito Bianchi' },
-  ]);
+  ];
 
   const chartData = {
     labels: ['Incassato', 'Insoluto'],

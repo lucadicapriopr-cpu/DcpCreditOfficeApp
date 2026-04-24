@@ -1,13 +1,29 @@
 // src/msalInstance.js
 import { PublicClientApplication, EventType, InteractionRequiredAuthError } from "@azure/msal-browser";
 
-// Usa variabili Vite (imposta nel tuo .env.local)
+function envFirst(...keys) {
+  for (const k of keys) {
+    const v = import.meta.env[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+const DEFAULT_AZURE_CLIENT_ID = "341318ff-205d-436d-a6ca-d681c255d12b";
+const DEFAULT_AZURE_TENANT_ID = "4979676a-f257-42dd-bc50-0601aacf73bf";
+export const AZURE_APP_OBJECT_ID = "bb8c0fbd-c936-4d3c-8179-6ad1154c18a5";
+
+const clientId = envFirst("VITE_AZURE_AD_CLIENT_ID") || DEFAULT_AZURE_CLIENT_ID;
+const tenantId = envFirst("VITE_AZURE_AD_TENANT_ID") || DEFAULT_AZURE_TENANT_ID;
+const redirectUri = envFirst("VITE_AZURE_AD_REDIRECT_URI") || window.location.origin;
+const postLogoutRedirectUri = redirectUri;
+
 const msalConfig = {
   auth: {
-    clientId: import.meta.env.VITE_AZURE_AD_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_AD_TENANT_ID}`,
-    redirectUri: import.meta.env.VITE_AZURE_AD_REDIRECT_URI || window.location.origin,
-    postLogoutRedirectUri: import.meta.env.VITE_AZURE_AD_POST_LOGOUT_REDIRECT_URI || window.location.origin,
+    clientId,
+    authority: `https://login.microsoftonline.com/${tenantId}`,
+    redirectUri,
+    postLogoutRedirectUri,
   },
   cache: {
     cacheLocation: "localStorage",
@@ -21,7 +37,10 @@ export const loginRequest = {
     "profile",
     "email",
     "offline_access",
-    "Calendars.ReadWrite", // per Outlook
+    "User.Read",
+    "Calendars.ReadWrite",
+    "Contacts.Read",
+    "Contacts.ReadWrite",
   ],
 };
 
