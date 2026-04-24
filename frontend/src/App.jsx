@@ -11,9 +11,22 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { ensureMsalInitialized, msalInstance } from "./msalInstance";
 
+function getCurrentAccount() {
+  const active = msalInstance.getActiveAccount();
+  if (active) return active;
+
+  const all = msalInstance.getAllAccounts();
+  if (all.length > 0) {
+    msalInstance.setActiveAccount(all[0]);
+    return all[0];
+  }
+
+  return null;
+}
+
 function ProtectedRoute({ children }) {
   const [ready, setReady] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [account, setAccount] = useState(() => getCurrentAccount());
 
   useEffect(() => {
     let mounted = true;
@@ -21,12 +34,15 @@ function ProtectedRoute({ children }) {
     async function init() {
       try {
         await ensureMsalInitialized();
-        const account = msalInstance.getActiveAccount();
-        if (mounted) setAuthenticated(Boolean(account));
-      } catch {
-        if (mounted) setAuthenticated(false);
+        const current = getCurrentAccount();
+
+        if (mounted) {
+          setAccount(current);
+        }
       } finally {
-        if (mounted) setReady(true);
+        if (mounted) {
+          setReady(true);
+        }
       }
     }
 
@@ -41,8 +57,8 @@ function ProtectedRoute({ children }) {
     return <div className="p-6 text-sm opacity-70">Verifica accesso Microsoft 365…</div>;
   }
 
-  if (!authenticated) {
-    return <Login />;
+  if (!account) {
+    return <Navigate to="/login" replace />;
   }
 
   return children;
