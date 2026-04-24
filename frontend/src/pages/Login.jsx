@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { loginRequest, msalInstance } from "../msalInstance";
 
 function resolveAccount() {
@@ -7,7 +6,6 @@ function resolveAccount() {
 }
 
 export default function Login() {
-  const navigate = useNavigate();
   const [account, setAccount] = useState(() => resolveAccount());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,7 +24,7 @@ export default function Login() {
     if (!active) return;
     msalInstance.setActiveAccount(active);
     setAccount(active);
-    navigate("/", { replace: true });
+    window.location.href = "/";
   };
 
   const handleLogin = async () => {
@@ -68,7 +66,7 @@ export default function Login() {
           disabled={!hasActiveAccount}
           className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold hover:bg-emerald-500 disabled:opacity-50"
         >
-          Entra nell'app
+          Entra nell&apos;app
         </button>
 
         {account && (
@@ -77,9 +75,7 @@ export default function Login() {
           </p>
         )}
 
-        {error && (
-          <p className="text-sm text-rose-300">{error}</p>
-        )}
+        {error && <p className="text-sm text-rose-300">{error}</p>}
       </div>
     </div>
   );
