@@ -26,7 +26,7 @@ function getCurrentAccount() {
 
 function ProtectedRoute({ children }) {
   const [ready, setReady] = useState(false);
-  const [account, setAccount] = useState(() => getCurrentAccount());
+  const [account, setAccount] = useState(null);
 
   useEffect(() => {
     let mounted = true;

@@ -6,19 +6,27 @@ function resolveAccount() {
 }
 
 export default function Login() {
-  const [account, setAccount] = useState(() => resolveAccount());
-  const [loading, setLoading] = useState(false);
+  const [account, setAccount] = useState(null);
   const [error, setError] = useState("");
 
   const hasActiveAccount = useMemo(() => Boolean(account), [account]);
 
   useEffect(() => {
-    const active = resolveAccount();
-    if (active) {
-      msalInstance.setActiveAccount(active);
-      setAccount(active);
+  async function init() {
+    try {
+      await msalInstance.initialize();
+      const active = resolveAccount();
+      if (active) {
+        msalInstance.setActiveAccount(active);
+        setAccount(active);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore inizializzazione login");
     }
-  }, []);
+  }
+
+  init();
+}, []);
 
   const goHome = (active) => {
     if (!active) return;
